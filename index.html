@@ -484,11 +484,15 @@
                 const timeContext = getTimeContext();
                 const roleContext = getRoleContext();
                 const chatContext = getChatContext();
+                const styleContext = getChatStyleContext();
+                const coupleProfile = getCoupleProfile();
                 
                 console.log('🚀 开始调用DeepSeek API...');
                 console.log('API Key:', DEEPSEEK_API_KEY);
                 console.log('请求上下文:', roleContext, timeContext);
                 console.log('聊天上下文:', chatContext);
+                console.log('风格分析:', styleContext);
+                console.log('情侣档案:', coupleProfile);
                 
                 const response = await fetch('https://api.deepseek.com/chat/completions', {
                     method: 'POST',
@@ -501,28 +505,61 @@
                         messages: [
                             {
                                 role: 'system',
-                                content: `你是AI月老，专门为情侣提供贴心的沟通建议。你的特点：
-1. 善于分析对话氛围和情感状态
-2. 根据聊天上下文给出针对性建议
-3. 生成温暖真诚的话语，25字以内
-4. 避免肉麻套话，要自然贴心
-5. 考虑时间场景和角色身份`
+                                content: `你是资深AI月老，拥有深度学习情侣沟通的能力。你的专长：
+
+🎯 核心能力：
+1. 深度分析对话风格和语言习惯
+2. 学习并记忆情侣的喜好、习惯、重要信息
+3. 生成符合当事人说话风格的自然建议
+4. 根据历史互动优化沟通策略
+5. 考虑情感状态、时间场景、关系动态
+
+💬 风格匹配原则：
+- 如果对方说话简洁，建议也要简洁有力
+- 如果对方喜欢表情包，可建议加入可爱元素
+- 如果对方语气温柔，建议语调也要温和
+- 如果对方较为活泼，建议可以更有趣味性
+- 保持与对话者一贯的表达习惯一致
+
+📚 学习记忆要求：
+- 从对话中提取关键信息（喜好、习惯、重要日期等）
+- 注意双方的沟通模式和可能的敏感点
+- 结合历史档案给出更贴心的建议
+- 避免触及过往矛盾或敏感话题
+
+🎭 输出要求：
+- 25字以内，自然真挚
+- 完全符合当事人的说话风格
+- 结合当前情境和历史信息
+- 避免生硬的建议，要像朋友的贴心提醒`
                             },
                             {
                                 role: 'user',
                                 content: `${roleContext}现在是${timeContext}。
 
-聊天上下文分析：
+📖 最近对话记录：
 ${chatContext}
 
-请根据以上对话情况，为我生成一句贴合当前聊天氛围的温暖话语。要求：
-1. 结合对话内容和情感状态
-2. 符合我的角色身份
-3. 适合当前时间场景
-4. 25字以内，自然真挚`
+🎨 说话风格分析：
+${styleContext}
+
+💝 情侣学习档案：
+${coupleProfile}
+
+📝 任务要求：
+请根据以上所有信息，为我生成一句完全符合我平时说话风格的温暖建议。
+
+重点考虑：
+1. 我的语言习惯和表达方式
+2. 对方的喜好和敏感点
+3. 当前对话的情感状态
+4. 历史互动中的成功经验
+5. 适合的时间场景
+
+直接输出建议内容，无需解释过程。`
                             }
                         ],
-                        max_tokens: 100
+                        max_tokens: 120
                     })
                 });
                 
@@ -540,6 +577,8 @@ ${chatContext}
                     showAISuggestion(`${aiAdvice} 💕`);
                     console.log('✅ AI月老指导获取成功:', aiAdvice);
                     
+                    // 🧠 学习新信息并更新档案
+                    updateCoupleProfile(chatContext, aiAdvice);
 
                 } else {
                     throw new Error('API响应格式异常');
@@ -555,6 +594,226 @@ ${chatContext}
                 const fallbackWords = getContextualFallbackWords();
                 showAISuggestion(fallbackWords);
                 console.log('🔄 使用上下文备用建议:', fallbackWords);
+            }
+        }
+
+        // 🎨 获取聊天风格分析
+        function getChatStyleContext() {
+            try {
+                const stored = localStorage.getItem(app.roomKey);
+                const messages = stored ? JSON.parse(stored) : [];
+                
+                // 分析我的说话风格
+                const myMessages = messages
+                    .filter(msg => msg.sender === app.username)
+                    .map(msg => msg.text)
+                    .slice(-10); // 最近10条消息
+                
+                // 分析对方的说话风格
+                const partnerMessages = messages
+                    .filter(msg => msg.sender !== app.username && msg.sender !== '系统')
+                    .map(msg => msg.text)
+                    .slice(-10);
+                
+                if (myMessages.length === 0) {
+                    return '暂无足够的聊天记录进行风格分析。';
+                }
+                
+                // 分析我的风格特征
+                const myStyleAnalysis = analyzeTextStyle(myMessages, '我');
+                
+                // 分析对方的风格特征  
+                const partnerStyleAnalysis = partnerMessages.length > 0 
+                    ? analyzeTextStyle(partnerMessages, '对方')
+                    : '对方还未发言，无法分析风格';
+                
+                return `我的说话风格：${myStyleAnalysis}
+
+对方的说话风格：${partnerStyleAnalysis}
+
+风格匹配建议：请生成符合我平时表达习惯的建议，同时考虑对方的接受风格。`;
+                
+            } catch (error) {
+                console.error('风格分析失败:', error);
+                return '无法进行风格分析，请根据常规情侣沟通方式给出建议。';
+            }
+        }
+
+        // 🔍 分析文本风格
+        function analyzeTextStyle(messages, who) {
+            if (messages.length === 0) return `${who}暂无发言记录`;
+            
+            const text = messages.join(' ');
+            const features = [];
+            
+            // 长度分析
+            const avgLength = text.length / messages.length;
+            if (avgLength < 10) features.push('简洁型');
+            else if (avgLength > 30) features.push('详细型');
+            else features.push('适中型');
+            
+            // 表情分析
+            if (text.includes('😊') || text.includes('😄') || text.includes('🥰')) features.push('爱用开心表情');
+            if (text.includes('💕') || text.includes('❤️') || text.includes('💖')) features.push('爱用爱心表情');
+            if (text.match(/[😂🤣😅]/)) features.push('幽默风趣');
+            
+            // 语气分析
+            if (text.includes('哈哈') || text.includes('嘻嘻')) features.push('活泼开朗');
+            if (text.includes('哦') || text.includes('嗯嗯')) features.push('温和回应');
+            if (text.includes('呀') || text.includes('呢') || text.includes('哇')) features.push('语气可爱');
+            if (text.includes('！') || text.includes('!')) features.push('表达热情');
+            
+            // 内容倾向
+            if (text.includes('工作') || text.includes('忙')) features.push('关注日常');
+            if (text.includes('想你') || text.includes('爱你')) features.push('情感直接');
+            if (text.includes('累') || text.includes('辛苦')) features.push('互相关心');
+            
+            return features.length > 0 ? features.join('、') : '表达自然';
+        }
+
+        // 💝 获取情侣档案
+        function getCoupleProfile() {
+            try {
+                const profileKey = `couple_profile_${app.roomKey}`;
+                const stored = localStorage.getItem(profileKey);
+                const profile = stored ? JSON.parse(stored) : {
+                    创建时间: new Date().toISOString(),
+                    双方信息: {},
+                    重要日期: {},
+                    喜好记录: {},
+                    沟通模式: {},
+                    敏感话题: [],
+                    成功经验: [],
+                    互动统计: {
+                        总消息数: 0,
+                        AI建议使用次数: 0,
+                        最后更新: new Date().toISOString()
+                    }
+                };
+                
+                if (Object.keys(profile.双方信息).length === 0) {
+                    return '🆕 这是你们的第一次AI月老咨询，开始建立专属情侣档案...';
+                }
+                
+                return `📊 专属情侣档案（自动学习更新）：
+
+👫 双方信息：
+${JSON.stringify(profile.双方信息, null, 2)}
+
+📅 重要日期：
+${JSON.stringify(profile.重要日期, null, 2)}
+
+💝 喜好记录：
+${JSON.stringify(profile.喜好记录, null, 2)}
+
+💬 沟通模式：
+${JSON.stringify(profile.沟通模式, null, 2)}
+
+⚠️ 敏感话题：${profile.敏感话题.join('、') || '暂无'}
+
+✅ 成功经验：${profile.成功经验.slice(-3).join('；') || '正在积累...'}
+
+📈 互动统计：AI建议已使用${profile.互动统计.AI建议使用次数}次`;
+                
+            } catch (error) {
+                console.error('获取情侣档案失败:', error);
+                return '📝 正在初始化专属情侣档案系统...';
+            }
+        }
+
+        // 📚 更新情侣档案
+        function updateCoupleProfile(chatContext, aiAdvice) {
+            try {
+                const profileKey = `couple_profile_${app.roomKey}`;
+                const stored = localStorage.getItem(profileKey);
+                let profile = stored ? JSON.parse(stored) : {
+                    创建时间: new Date().toISOString(),
+                    双方信息: {},
+                    重要日期: {},
+                    喜好记录: {},
+                    沟通模式: {},
+                    敏感话题: [],
+                    成功经验: [],
+                    互动统计: {
+                        总消息数: 0,
+                        AI建议使用次数: 0,
+                        最后更新: new Date().toISOString()
+                    }
+                };
+                
+                // 更新基础信息
+                profile.双方信息[app.username] = app.role;
+                profile.互动统计.AI建议使用次数++;
+                profile.互动统计.最后更新 = new Date().toISOString();
+                
+                // 从聊天内容中提取信息
+                extractInfoFromChat(profile, chatContext);
+                
+                // 记录成功的AI建议
+                if (aiAdvice) {
+                    profile.成功经验.push(`${new Date().toLocaleDateString()}: ${aiAdvice}`);
+                    if (profile.成功经验.length > 10) {
+                        profile.成功经验 = profile.成功经验.slice(-10); // 只保留最近10条
+                    }
+                }
+                
+                // 保存档案
+                localStorage.setItem(profileKey, JSON.stringify(profile));
+                console.log('📚 情侣档案已更新:', profile);
+                
+            } catch (error) {
+                console.error('更新情侣档案失败:', error);
+            }
+        }
+
+        // 🔍 从聊天中提取信息
+        function extractInfoFromChat(profile, chatContext) {
+            const text = chatContext.toLowerCase();
+            
+            // 提取时间相关信息
+            if (text.includes('生日') || text.includes('birthday')) {
+                if (!profile.重要日期.生日) profile.重要日期.生日 = '提及过生日话题';
+            }
+            if (text.includes('纪念日') || text.includes('anniversary')) {
+                if (!profile.重要日期.纪念日) profile.重要日期.纪念日 = '提及过纪念日话题';
+            }
+            if (text.includes('节日') || text.includes('假期')) {
+                if (!profile.重要日期.节日计划) profile.重要日期.节日计划 = '讨论过节日安排';
+            }
+            
+            // 提取喜好信息
+            if (text.includes('喜欢') || text.includes('爱好')) {
+                const lines = chatContext.split('\n');
+                lines.forEach(line => {
+                    if (line.includes('喜欢')) {
+                        const parts = line.split('喜欢');
+                        if (parts.length > 1) {
+                            const preference = parts[1].substring(0, 20);
+                            profile.喜好记录[`${app.username}的喜好`] = preference;
+                        }
+                    }
+                });
+            }
+            
+            // 分析沟通模式
+            const stored = localStorage.getItem(app.roomKey);
+            if (stored) {
+                const messages = JSON.parse(stored);
+                const myMessages = messages.filter(msg => msg.sender === app.username).length;
+                const totalMessages = messages.filter(msg => msg.sender !== '系统').length;
+                
+                if (totalMessages > 0) {
+                    const myRatio = (myMessages / totalMessages * 100).toFixed(1);
+                    profile.沟通模式[`${app.username}发言占比`] = `${myRatio}%`;
+                }
+            }
+            
+            // 检测可能的敏感话题
+            if (text.includes('吵架') || text.includes('生气') || text.includes('不开心')) {
+                const sensitiveKeyword = '情绪波动话题';
+                if (!profile.敏感话题.includes(sensitiveKeyword)) {
+                    profile.敏感话题.push(sensitiveKeyword);
+                }
             }
         }
 
