@@ -540,8 +540,7 @@ ${chatContext}
                     showAISuggestion(`${aiAdvice} 💕`);
                     console.log('✅ AI月老指导获取成功:', aiAdvice);
                     
-                    // 添加成功提示
-                    addMessage('系统', '🏹 AI月老基于对话分析生成指导！', 'system');
+
                 } else {
                     throw new Error('API响应格式异常');
                 }
@@ -731,8 +730,7 @@ ${recentMessages || '暂无对话记录'}
                 suggestionDiv.style.borderColor = '#dee2e6';
             }, 500);
             
-            // 添加系统提示
-            addMessage('系统', '💡 AI建议已复制到输入框', 'system');
+
             console.log('📋 AI建议已复制:', currentAISuggestion);
         }
 
